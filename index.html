@@ -101,6 +101,27 @@ section h2{font-size:clamp(24px,3.6vw,38px);margin-bottom:8px}
 .live i{width:8px;height:8px;border-radius:50%;background:#2ee6c5;box-shadow:0 0 0 0 rgba(46,230,197,.6);animation:ping 1.8s infinite}
 .live.off i{background:#ff9a3c;animation:none}
 @keyframes ping{70%{box-shadow:0 0 0 8px rgba(46,230,197,0)}100%{box-shadow:0 0 0 0 rgba(46,230,197,0)}}
+.cta{display:inline-block;margin-top:14px;font-weight:700;color:var(--accent);text-decoration:none}
+.cta:hover{text-decoration:underline}
+.bookgrid{display:grid;grid-template-columns:1.1fr .9fr;gap:20px;align-items:start}
+.f{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;font-weight:600;font-size:14px}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.f input,.f select{font:400 15px Manrope,sans-serif;color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:12px;padding:11px 12px;width:100%;transition:border-color .2s}
+.f input:focus,.f select:focus{outline:none;border-color:var(--accent)}
+.btn{font:700 15px Manrope,sans-serif;color:#fff;background:linear-gradient(90deg,var(--accent),var(--accent2));border:0;border-radius:999px;padding:13px 26px;cursor:pointer;transition:transform .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px -10px var(--accent)}
+.btn:disabled{opacity:.6;cursor:wait;transform:none}
+.msg{min-height:22px;margin:12px 0 0;font-weight:600;font-size:14px}.msg.ok{color:#14a37f}.msg.err{color:#e0335f}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.kpis div{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center}
+.kpis b{display:block;font:700 22px Unbounded,sans-serif}.kpis span{font-size:12px;color:var(--muted)}
+.box h4{margin:16px 0 8px;font:700 13px Unbounded,sans-serif}
+.feed{list-style:none;margin:0;padding:0;font-size:14px}
+.feed li{padding:8px 0;border-bottom:1px dashed var(--line);display:flex;gap:6px;flex-wrap:wrap;align-items:baseline;animation:rise .5s both}
+.feed li span{margin-left:auto;color:var(--muted);font-size:12px}
+.st{font-style:normal;font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--line)}
+.st.Confirmed,.st.Completed{background:rgba(46,230,197,.25)}.st.Pending{background:rgba(255,154,60,.25)}
+@media (max-width:820px){.bookgrid,.f2{grid-template-columns:1fr}}
 footer{margin-top:60px;padding:30px 0 40px;border-top:1px solid var(--line);color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
 @media (max-width:820px){
   .hero,.controls,.feat{grid-template-columns:1fr}
@@ -169,6 +190,32 @@ footer{margin-top:60px;padding:30px 0 40px;border-top:1px solid var(--line);colo
     <div class="spec"><label>Top speed</label><div class="track"><div class="fill" data-k="1"></div></div><output id="o1"></output></div>
     <div class="spec"><label>0–100 km/h</label><div class="track"><div class="fill" data-k="2"></div></div><output id="o2"></output></div>
     <div class="spec"><label>Range</label><div class="track"><div class="fill" data-k="3"></div></div><output id="o3"></output></div>
+    <a class="cta" href="#book">Book a test drive →</a>
+  </section>
+
+  <section id="book">
+    <h2>Book a test drive</h2>
+    <p class="sub">Your booking is saved in the database and shows up in the live feed next to the form.</p>
+    <div class="bookgrid">
+      <form id="bookForm" class="box" novalidate>
+        <div class="f2">
+          <label class="f">Full name<input id="bName" maxlength="80" autocomplete="name" required></label>
+          <label class="f">Email<input id="bEmail" type="email" maxlength="120" autocomplete="email" required></label>
+        </div>
+        <div class="f2">
+          <label class="f">Phone (optional)<input id="bPhone" maxlength="25" autocomplete="tel"></label>
+          <label class="f">City (optional)<input id="bCity" maxlength="60" autocomplete="address-level2"></label>
+        </div>
+        <div class="f2">
+          <label class="f">Model<select id="bModel"></select></label>
+          <label class="f">Date<input id="bDate" type="date" required></label>
+        </div>
+        <label class="f">Time slot<select id="bSlot"><option>Sunset</option><option>Morning</option><option>Afternoon</option></select></label>
+        <button class="btn" id="bBtn" type="submit">Book my test drive</button>
+        <p class="msg" id="bookMsg" role="status"></p>
+      </form>
+      <div class="box"><h3>Live from the database</h3><div id="stats"><p class="sub">Loading…</p></div></div>
+    </div>
   </section>
 
   <section id="why">
@@ -242,7 +289,7 @@ async function load(first){
     DATA=d; online=true; renderText(d);
   }catch(e){ if(first){DATA=FALLBACK;} online=false; }
   if(cur===null||!DATA.models.some(m=>m.model_id===cur))cur=DATA.models[0].model_id;
-  renderChips(); showModel(first);
+  renderChips(); showModel(first); fillModels(false);
 }
 async function logAction(action){
   if(!online)return;
@@ -256,11 +303,43 @@ thr.addEventListener("input",()=>setSpeed(+thr.value));
 thr.addEventListener("change",()=>logAction("throttle_change"));
 $("#chips").addEventListener("click",e=>{
   const b=e.target.closest(".chip"); if(!b)return;
-  cur=+b.dataset.id; renderChips(); showModel(true); logAction("model_select");
+  cur=+b.dataset.id; renderChips(); showModel(true); fillModels(true); logAction("model_select");
+});
+function fillModels(force){
+  const sel=$("#bModel"), prev=force?String(cur):(sel.value||String(cur));
+  sel.innerHTML=DATA.models.map(m=>'<option value="'+m.model_id+'">'+esc(m.model_name)+'</option>').join("");
+  sel.value=DATA.models.some(m=>String(m.model_id)===prev)?prev:String(cur);
+}
+const ago=iso=>{const s=Math.max(0,(Date.now()-new Date(iso))/1000);return s<60?Math.floor(s)+"s ago":s<3600?Math.floor(s/60)+" min ago":s<86400?Math.floor(s/3600)+" h ago":Math.floor(s/86400)+" d ago";};
+async function loadStats(){
+  const box=$("#stats");
+  if(!online){box.innerHTML='<p class="sub">Connect the database to see live bookings and activity.</p>';return;}
+  try{
+    const r=await fetch("/api/stats",{cache:"no-store"}); if(!r.ok)throw 0; const d=await r.json();
+    const c=d.counts;
+    box.innerHTML='<div class="kpis"><div><b>'+c.customers+'</b><span>customers</span></div><div><b>'+c.bookings+'</b><span>bookings</span></div><div><b>'+c.interactions+'</b><span>interactions</span></div></div>'
+     +'<h4>Latest bookings</h4><ul class="feed">'+(d.bookings.map(b=>'<li><b>'+esc(b.first_name)+'</b> · '+esc(b.model_name)+' · '+esc(b.drive_date)+' · '+esc(b.time_slot)+' <em class="st '+esc(b.status)+'">'+esc(b.status)+'</em></li>').join("")||'<li>No bookings yet</li>')+'</ul>'
+     +'<h4>Latest activity</h4><ul class="feed">'+(d.activity.map(a=>'<li>'+(a.action_type==="model_select"?"Someone viewed ":"Someone revved ")+'<b>'+esc(a.model_name)+'</b>'+(a.action_type==="throttle_change"?" to "+a.speed_kmh+" km/h":"")+'<span>'+ago(a.logged_at)+'</span></li>').join("")||'<li>No activity yet</li>')+'</ul>';
+  }catch(e){}
+}
+$("#bDate").min=new Date().toISOString().slice(0,10);
+$("#bookForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const msg=$("#bookMsg"), btn=$("#bBtn"); msg.className="msg";
+  if(!online){msg.textContent="The database is not connected yet.";msg.classList.add("err");return;}
+  const body={full_name:$("#bName").value,email:$("#bEmail").value,phone:$("#bPhone").value,city:$("#bCity").value,model_id:+$("#bModel").value,drive_date:$("#bDate").value,time_slot:$("#bSlot").value};
+  btn.disabled=true;
+  try{
+    const r=await fetch("/api/book",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(d.ok){msg.textContent="Booked! Your booking #"+d.booking_id+" is "+d.status+".";msg.classList.add("ok");e.target.reset();fillModels(true);loadStats();}
+    else{msg.textContent=d.error||"Could not save the booking.";msg.classList.add("err");}
+  }catch(err){msg.textContent="Network error. Please try again.";msg.classList.add("err");}
+  btn.disabled=false;
 });
 setSpeed(0);
-load(true);
-setInterval(()=>load(false),8000);
+load(true).then(loadStats);
+setInterval(()=>load(false).then(loadStats),8000);
 setTimeout(()=>{let t=0;const id=setInterval(()=>{t+=3;thr.value=Math.min(t,55);setSpeed(Math.min(t,55));if(t>=55)clearInterval(id)},40)},500);
 </script>
 </body>
