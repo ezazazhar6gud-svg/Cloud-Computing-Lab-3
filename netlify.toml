@@ -1,0 +1,2 @@
+[db.migrations]
+  path = "netlify/database/migrations"
